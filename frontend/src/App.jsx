@@ -28,6 +28,8 @@ function App() {
   const [submitting, setSubmitting] = useState(false);
   const [successClaim, setSuccessClaim] = useState(null);
   const [apiError, setApiError] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [uploadError, setUploadError] = useState("");
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -51,8 +53,23 @@ function App() {
 
     try {
       const response = await axios.post(`${API_URL}/claims`, payload);
-      setSuccessClaim(response.data.claim);
+      const createdClaim = response.data.claim;
+      setSuccessClaim(createdClaim);
       setForm(initialForm);
+
+      if (selectedFiles.length > 0) {
+        const documentData = new FormData();
+        selectedFiles.forEach((file) => documentData.append("documents", file));
+        try {
+          await axios.post(`${API_URL}/claims/${createdClaim.id}/documents`, documentData);
+          setSelectedFiles([]);
+        } catch (uploadRequestError) {
+          setUploadError(
+            uploadRequestError.response?.data?.message ||
+              "Claim was created, but document upload failed. Please retry the upload."
+          );
+        }
+      }
     } catch (error) {
       if (error.response?.status === 400 && error.response.data?.errors) {
         setErrors(error.response.data.errors);
@@ -192,6 +209,12 @@ function App() {
                 </div>
               )}
 
+              {uploadError && (
+                <div role="alert" className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                  {uploadError}
+                </div>
+              )}
+
               {apiError && (
                 <div role="alert" className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                   {apiError}
@@ -247,6 +270,29 @@ function App() {
                   Claim description *
                   <textarea className={`${inputClass} min-h-32 resize-y`} name="description" value={form.description} onChange={handleChange} placeholder="Briefly describe the claim and relevant details..." required maxLength={5000} />
                   {fieldError("description")}
+                </label>
+                <label className={`${labelClass} sm:col-span-2`}>
+                  Supporting documents (optional)
+                  <input
+                    className={inputClass}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                    multiple
+                    onChange={(event) => {
+                      setSelectedFiles(Array.from(event.target.files || []));
+                      setUploadError("");
+                    }}
+                  />
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    PDF, JPG, or PNG. Up to 5 files, 10 MB each. For this demo, use synthetic/test documents only.
+                  </p>
+                  {selectedFiles.length > 0 && (
+                    <ul className="mt-2 list-inside list-disc text-xs text-slate-600">
+                      {selectedFiles.map((file, index) => (
+                        <li key={`${file.name}-${index}`}>{file.name}</li>
+                      ))}
+                    </ul>
+                  )}
                 </label>
               </div>
 
