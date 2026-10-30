@@ -30,6 +30,9 @@ function App() {
   const [apiError, setApiError] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploadError, setUploadError] = useState("");
+  const [aiReview, setAiReview] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -55,6 +58,8 @@ function App() {
       const response = await axios.post(`${API_URL}/claims`, payload);
       const createdClaim = response.data.claim;
       setSuccessClaim(createdClaim);
+      setAiReview(null);
+      setAiError("");
       setForm(initialForm);
 
       if (selectedFiles.length > 0) {
@@ -81,6 +86,22 @@ function App() {
       }
     } finally {
       setSubmitting(false);
+    }
+  }
+
+
+  async function handleAiReview() {
+    if (!successClaim?.id) return;
+    setAiLoading(true);
+    setAiError("");
+    setAiReview(null);
+    try {
+      const response = await axios.post(`${API_URL}/claims/${successClaim.id}/ai-review`);
+      setAiReview(response.data.review);
+    } catch (error) {
+      setAiError(error.response?.data?.message || "AI review failed. Check the uploaded PDF and Groq configuration.");
+    } finally {
+      setAiLoading(false);
     }
   }
 
@@ -206,6 +227,21 @@ function App() {
                   </div>
                   <p className="mt-2">Reference ID: <span className="break-all font-mono">{successClaim.id}</span></p>
                   <p className="mt-1">Current status: {successClaim.status}</p>
+                  <button type="button" onClick={handleAiReview} disabled={aiLoading}
+                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-sage-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sage-800 disabled:opacity-60">
+                    <Sparkles size={16} /> {aiLoading ? "Analyzing documents..." : "Run AI document review"}
+                  </button>
+                  {aiError && <p role="alert" className="mt-3 text-sm text-red-700">{aiError}</p>}
+                  {aiReview && (
+                    <div className="mt-5 space-y-4 border-t border-green-200 pt-4 text-left">
+                      <div><h3 className="font-semibold">AI summary</h3><p className="mt-1 leading-6">{aiReview.summary || "No summary returned."}</p></div>
+                      <div><h3 className="font-semibold">Extracted fields (verify manually)</h3><pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-xl bg-white/80 p-3 text-xs">{JSON.stringify(aiReview.extractedFields || {}, null, 2)}</pre></div>
+                      <div><h3 className="font-semibold">Missing information</h3>{aiReview.missingInformation?.length ? <ul className="mt-1 list-inside list-disc">{aiReview.missingInformation.map((item, index) => <li key={index}>{item}</li>)}</ul> : <p className="mt-1">No missing information flagged by AI.</p>}</div>
+                      <div><h3 className="font-semibold">Possible discrepancies</h3>{aiReview.possibleDiscrepancies?.length ? <ul className="mt-1 list-inside list-disc">{aiReview.possibleDiscrepancies.map((item, index) => <li key={index}>{item}</li>)}</ul> : <p className="mt-1">No possible discrepancies flagged by AI.</p>}</div>
+                      <div><h3 className="font-semibold">Reviewer notes</h3>{aiReview.reviewerNotes?.length ? <ul className="mt-1 list-inside list-disc">{aiReview.reviewerNotes.map((item, index) => <li key={index}>{item}</li>)}</ul> : <p className="mt-1">No additional notes.</p>}</div>
+                      <p className="text-xs text-green-800">AI-generated assistance only. A human reviewer must verify all extracted information.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
