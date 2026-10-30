@@ -6,6 +6,7 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const pool = require("./config/db");
 const claimRoutes = require("./routes/claimRoutes");
+const documentRoutes = require("./routes/documentRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -50,8 +51,8 @@ app.get("/api/health/db", async (req, res) => {
   }
 });
 
-// Claim intake API
 app.use("/api/claims", claimRoutes);
+app.use("/api/claims", documentRoutes);
 
 app.get("/", (req, res) => {
   res.send("ClaimPilot API");
