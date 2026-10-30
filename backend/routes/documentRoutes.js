@@ -1,8 +1,11 @@
 const express = require("express");
 const upload = require("../middleware/upload");
 const { uploadClaimDocuments } = require("../controllers/documentController");
+const { analyzeClaimDocuments } = require("../controllers/aiReviewController");
 
 const router = express.Router();
+
+router.post("/:claimId/ai-review", analyzeClaimDocuments);
 
 router.post("/:claimId/documents", (req, res, next) => {
   upload.array("documents", 5)(req, res, (error) => {
