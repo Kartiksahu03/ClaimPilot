@@ -101,7 +101,7 @@ async function getClaims(req, res) {
   try {
     const result = await pool.query(
       `SELECT id, claimant_name, email, claim_category, policy_number,
-              claim_amount, status, review_status, created_at
+              claim_amount, status, review_status, review_disposition, reviewed_at, created_at
        FROM claims
        ORDER BY created_at DESC
        LIMIT 100`
@@ -118,7 +118,7 @@ async function getClaimReviewWorkspace(req, res) {
   const { claimId } = req.params;
   try {
     const claimResult = await pool.query(
-      "SELECT id, review_status FROM claims WHERE id = $1",
+      "SELECT id, review_status, review_disposition, reviewed_at FROM claims WHERE id = $1",
       [claimId]
     );
     if (!claimResult.rows.length) return res.status(404).json({ success: false, message: "Claim not found." });
