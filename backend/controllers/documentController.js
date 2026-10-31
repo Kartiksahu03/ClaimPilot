@@ -66,7 +66,7 @@ async function getClaimDocuments(req, res) {
   const { claimId } = req.params;
   try {
     const result = await pool.query(
-      `SELECT id, claim_id, original_file_name, mime_type, file_size_bytes, uploaded_at
+      `SELECT id, claim_id, original_file_name, mime_type, file_size_bytes, uploaded_at, verified
        FROM claim_documents WHERE claim_id = $1 ORDER BY uploaded_at DESC`,
       [claimId]
     );
@@ -74,6 +74,25 @@ async function getClaimDocuments(req, res) {
   } catch (error) {
     console.error("Fetch claim documents failed:", error.message);
     return res.status(500).json({ success: false, message: "Could not retrieve claim documents." });
+  }
+}
+
+async function setDocumentVerification(req, res) {
+  const { claimId, documentId } = req.params;
+  const verified = req.body.verified;
+  if (typeof verified !== "boolean") {
+    return res.status(400).json({ success: false, message: "verified must be true or false." });
+  }
+  try {
+    const result = await pool.query(
+      "UPDATE claim_documents SET verified = $1 WHERE id = $2 AND claim_id = $3 RETURNING id, claim_id, verified",
+      [verified, documentId, claimId]
+    );
+    if (!result.rowCount) return res.status(404).json({ success: false, message: "Document not found." });
+    return res.json({ success: true, document: result.rows[0] });
+  } catch (error) {
+    console.error("Document verification update failed:", error.message);
+    return res.status(500).json({ success: false, message: "Could not update document verification." });
   }
 }
 
@@ -98,4 +117,4 @@ async function viewClaimDocument(req, res) {
   }
 }
 
-module.exports = { uploadClaimDocuments, getClaimDocuments, viewClaimDocument };
+module.exports = { uploadClaimDocuments, getClaimDocuments, setDocumentVerification, viewClaimDocument };
