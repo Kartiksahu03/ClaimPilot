@@ -101,7 +101,7 @@ async function getClaims(req, res) {
   try {
     const result = await pool.query(
       `SELECT id, claimant_name, email, claim_category, policy_number,
-              claim_amount, status, created_at
+              claim_amount, status, review_status, created_at
        FROM claims
        ORDER BY created_at DESC
        LIMIT 100`
