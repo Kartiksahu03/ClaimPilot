@@ -17,6 +17,26 @@ ClaimPilot helps a reviewer organize claim submissions, inspect supporting docum
 
 **Important distinction:** A recorded review disposition is a workflow status, not an insurance coverage decision. Final decisions remain with the authorized insurer/reviewer.
 
+## Architecture
+
+```mermaid
+flowchart LR
+    Reviewer["Human reviewer"]
+    UI["React + Vite frontend\nClaims queue & review workspace"]
+    API["Node.js + Express API\nWorkflow and application logic"]
+    DB[("Supabase PostgreSQL\nClaims · Documents · Notes\nDispositions · Activity")]
+    AI["Groq AI service\nAdvisory summaries & review context"]
+
+    Reviewer -->|"Inspect, verify, record disposition"| UI
+    UI <-->|"HTTP API requests"| API
+    API <-->|"Read / write records"| DB
+    API -->|"AI assistance request"| AI
+    AI -->|"Generated context (verify it)"| API
+    API -->|"Advisory result"| UI
+```
+
+**Human-in-the-loop boundary:** AI returns advisory context only. The reviewer verifies evidence and records workflow progress. ClaimPilot does not automatically approve or reject insurance claims.
+
 ## Technology
 
 | Layer | Technologies |
