@@ -39,7 +39,10 @@ function App() {
   const [selectedClaim, setSelectedClaim] = useState(null);
   const [claimDocuments, setClaimDocuments] = useState([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
-  const [documentsError, setDocumentsError] = useState("");\n  const [reviewWorkspace, setReviewWorkspace] = useState({ notes: [], activity: [], claim: null });\n  const [reviewNote, setReviewNote] = useState("");\n  const [reviewError, setReviewError] = useState("");
+  const [documentsError, setDocumentsError] = useState("");
+  const [reviewWorkspace, setReviewWorkspace] = useState({ notes: [], activity: [], claim: null });
+  const [reviewNote, setReviewNote] = useState("");
+  const [reviewError, setReviewError] = useState("");
 
   async function loadClaims() {
     setClaimsLoading(true);
@@ -118,7 +121,23 @@ function App() {
   }
 
 
-  async function loadReviewWorkspace(claimId) {\n    if (!claimId) return;\n    try { const response = await axios.get(`${API_URL}/claims/${claimId}/review-workspace`); setReviewWorkspace(response.data); setReviewError(""); }\n    catch (error) { setReviewError(error.response?.data?.message || "Could not load reviewer workspace."); }\n  }\n  async function changeReviewStatus(value) {\n    if (!selectedClaim?.id) return;\n    try { await axios.patch(`${API_URL}/claims/${selectedClaim.id}/review-status`, { review_status: value }); await loadReviewWorkspace(selectedClaim.id); await loadClaims(); }\n    catch (error) { setReviewError(error.response?.data?.message || "Could not update review status."); }\n  }\n  async function submitReviewerNote(event) {\n    event.preventDefault(); if (!selectedClaim?.id || !reviewNote.trim()) return;\n    try { await axios.post(`${API_URL}/claims/${selectedClaim.id}/reviewer-notes`, { note: reviewNote }); setReviewNote(""); await loadReviewWorkspace(selectedClaim.id); }\n    catch (error) { setReviewError(error.response?.data?.message || "Could not save reviewer note."); }\n  }\n\n  async function loadClaimDocuments(claimId) {
+  async function loadReviewWorkspace(claimId) {
+    if (!claimId) return;
+    try { const response = await axios.get(`${API_URL}/claims/${claimId}/review-workspace`); setReviewWorkspace(response.data); setReviewError(""); }
+    catch (error) { setReviewError(error.response?.data?.message || "Could not load reviewer workspace."); }
+  }
+  async function changeReviewStatus(value) {
+    if (!selectedClaim?.id) return;
+    try { await axios.patch(`${API_URL}/claims/${selectedClaim.id}/review-status`, { review_status: value }); await loadReviewWorkspace(selectedClaim.id); await loadClaims(); }
+    catch (error) { setReviewError(error.response?.data?.message || "Could not update review status."); }
+  }
+  async function submitReviewerNote(event) {
+    event.preventDefault(); if (!selectedClaim?.id || !reviewNote.trim()) return;
+    try { await axios.post(`${API_URL}/claims/${selectedClaim.id}/reviewer-notes`, { note: reviewNote }); setReviewNote(""); await loadReviewWorkspace(selectedClaim.id); }
+    catch (error) { setReviewError(error.response?.data?.message || "Could not save reviewer note."); }
+  }
+
+  async function loadClaimDocuments(claimId) {
     if (!claimId) return;
     setDocumentsLoading(true);
     setDocumentsError("");
@@ -268,7 +287,8 @@ function App() {
                     <p className="mt-1 text-sm text-slate-600">{claim.claim_category} · ₹{claim.claim_amount ?? "—"}</p><p className="mt-2 break-all font-mono text-xs text-slate-500">Reference ID: {claim.id}</p></div>
                     <button type="button" onClick={() => { setSelectedClaim(claim); setSuccessClaim(claim); setAiReview(null); setAiError(""); loadClaimDocuments(claim.id); loadReviewWorkspace(claim.id); }} className="rounded-full bg-sage-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sage-800">{selectedClaim?.id === claim.id ? "Selected claim" : "Open claim"}</button></div>
                 </article>)}</div>}
-            {selectedClaim && <div className="mt-6 rounded-3xl border border-sage-100 bg-white p-5 shadow-soft sm:p-7">\n              <section className="mb-6 border-b border-sage-100 pb-5"><h4 className="font-semibold">Reviewer workspace</h4><label className="mt-3 block text-sm">Review status<select className={inputClass} value={reviewWorkspace.claim?.review_status || selectedClaim.review_status || "Submitted"} onChange={(e) => changeReviewStatus(e.target.value)}><option>Submitted</option><option>In Review</option><option>Review Completed</option></select></label>{reviewError && <p className="mt-2 text-sm text-red-700">{reviewError}</p>}<form onSubmit={submitReviewerNote} className="mt-4"><label className="block text-sm font-medium">Reviewer comment<textarea className={`${inputClass} min-h-20`} value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} placeholder="Add a reviewer note..." maxLength={3000}/></label><button className="mt-2 rounded-full bg-sage-700 px-4 py-2 text-sm font-semibold text-white" type="submit">Save comment</button></form><div className="mt-4"><h5 className="text-sm font-semibold">Comments</h5>{(reviewWorkspace.notes || []).map((note) => <p key={note.id} className="mt-2 rounded-lg bg-cream p-3 text-sm">{note.note}<span className="mt-1 block text-xs text-slate-500">{note.reviewer_name} · {new Date(note.created_at).toLocaleString()}</span></p>)}</div><div className="mt-4"><h5 className="text-sm font-semibold">Activity timeline</h5>{(reviewWorkspace.activity || []).map((event) => <div key={event.id} className="mt-2 border-l-2 border-sage-300 pl-3 text-sm"><p className="font-medium">{String(event.action).replaceAll("_", " ")}</p><p className="text-xs text-slate-500">{event.details?.description || ""} · {new Date(event.created_at).toLocaleString()}</p></div>)}</div></section>
+            {selectedClaim && <div className="mt-6 rounded-3xl border border-sage-100 bg-white p-5 shadow-soft sm:p-7">
+              <section className="mb-6 border-b border-sage-100 pb-5"><h4 className="font-semibold">Reviewer workspace</h4><label className="mt-3 block text-sm">Review status<select className={inputClass} value={reviewWorkspace.claim?.review_status || selectedClaim.review_status || "Submitted"} onChange={(e) => changeReviewStatus(e.target.value)}><option>Submitted</option><option>In Review</option><option>Review Completed</option></select></label>{reviewError && <p className="mt-2 text-sm text-red-700">{reviewError}</p>}<form onSubmit={submitReviewerNote} className="mt-4"><label className="block text-sm font-medium">Reviewer comment<textarea className={`${inputClass} min-h-20`} value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} placeholder="Add a reviewer note..." maxLength={3000}/></label><button className="mt-2 rounded-full bg-sage-700 px-4 py-2 text-sm font-semibold text-white" type="submit">Save comment</button></form><div className="mt-4"><h5 className="text-sm font-semibold">Comments</h5>{(reviewWorkspace.notes || []).map((note) => <p key={note.id} className="mt-2 rounded-lg bg-cream p-3 text-sm">{note.note}<span className="mt-1 block text-xs text-slate-500">{note.reviewer_name} · {new Date(note.created_at).toLocaleString()}</span></p>)}</div><div className="mt-4"><h5 className="text-sm font-semibold">Activity timeline</h5>{(reviewWorkspace.activity || []).map((event) => <div key={event.id} className="mt-2 border-l-2 border-sage-300 pl-3 text-sm"><p className="font-medium">{String(event.action).replaceAll("_", " ")}</p><p className="text-xs text-slate-500">{event.details?.description || ""} · {new Date(event.created_at).toLocaleString()}</p></div>)}</div></section>
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start"><div><p className="text-sm font-medium text-sage-700">Selected claim</p><h3 className="mt-1 text-xl font-semibold">{selectedClaim.claimant_name}</h3><p className="mt-1 break-all font-mono text-xs text-slate-500">{selectedClaim.id}</p></div>
                 <button type="button" onClick={handleAiReview} disabled={aiLoading} className="inline-flex items-center justify-center gap-2 rounded-full bg-sage-700 px-5 py-3 text-sm font-semibold text-white hover:bg-sage-800 disabled:opacity-60"><Sparkles size={16} /> {aiLoading ? "Analyzing documents..." : "Run AI document review"}</button></div>
 
