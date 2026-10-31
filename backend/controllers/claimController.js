@@ -159,6 +159,26 @@ async function updateClaimReviewStatus(req, res) {
   } finally { client.release(); }
 }
 
+async function recordReviewDisposition(req, res) {
+  const { claimId } = req.params;
+  const disposition = cleanText(req.body.disposition);
+  const allowed = ["Pending", "Reviewed - More Information Required", "Reviewed - Ready for Insurer Decision"];
+  if (!allowed.includes(disposition)) return res.status(400).json({ success: false, message: "Invalid review disposition." });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const updated = await client.query("UPDATE claims SET review_disposition = $1, reviewed_at = CASE WHEN $1 = 'Pending' THEN NULL ELSE NOW() END, updated_at = NOW() WHERE id = $2 RETURNING id, review_disposition, reviewed_at", [disposition, claimId]);
+    if (!updated.rows.length) { await client.query("ROLLBACK"); return res.status(404).json({ success: false, message: "Claim not found." }); }
+    await client.query("INSERT INTO claim_activity_logs (claim_id, action, details) VALUES ($1, $2, $3)", [claimId, "review_disposition_recorded", JSON.stringify({ description: "Reviewer recorded disposition: " + disposition, disposition, reviewed_at: updated.rows[0].reviewed_at })]);
+    await client.query("COMMIT");
+    return res.json({ success: true, claim: updated.rows[0] });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Review disposition failed:", error.message);
+    return res.status(500).json({ success: false, message: "Unable to record disposition. Apply the migration first." });
+  } finally { client.release(); }
+}
+
 async function addReviewerNote(req, res) {
   const { claimId } = req.params;
   const note = cleanText(req.body.note);
@@ -184,5 +204,5 @@ async function addReviewerNote(req, res) {
   } finally { client.release(); }
 }
 
-module.exports = { createClaim, getClaims, getClaimReviewWorkspace, updateClaimReviewStatus, addReviewerNote };
+module.exports = { createClaim, getClaims, getClaimReviewWorkspace, updateClaimReviewStatus, recordReviewDisposition, addReviewerNote };
 
