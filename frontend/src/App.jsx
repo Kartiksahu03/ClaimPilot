@@ -41,6 +41,7 @@ function App() {
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [selectedClaim, setSelectedClaim] = useState(null);
   const [claimDocuments, setClaimDocuments] = useState([]);
+  const [documentVerificationError, setDocumentVerificationError] = useState("");
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [documentsError, setDocumentsError] = useState("");
   const [reviewWorkspace, setReviewWorkspace] = useState({ notes: [], activity: [], claim: null });
@@ -152,6 +153,17 @@ function App() {
       setDocumentsError(error.response?.data?.message || "Could not load documents for this claim.");
     } finally {
       setDocumentsLoading(false);
+    }
+  }
+
+  async function toggleDocumentVerification(doc) {
+    if (!selectedClaim?.id) return;
+    setDocumentVerificationError("");
+    try {
+      const response = await axios.patch(`${API_URL}/claims/${selectedClaim.id}/documents/${doc.id}/verification`, { verified: !doc.verified });
+      setClaimDocuments((current) => current.map((item) => item.id === doc.id ? { ...item, verified: response.data.document.verified } : item));
+    } catch (error) {
+      setDocumentVerificationError(error.response?.data?.message || "Could not update document verification.");
     }
   }
 
@@ -310,10 +322,11 @@ function App() {
                 {documentsLoading ? <p className="mt-3 text-sm text-slate-500">Loading documents…</p>
                   : documentsError ? <p role="alert" className="mt-3 text-sm text-red-700">{documentsError}</p>
                   : claimDocuments.length === 0 ? <p className="mt-3 text-sm text-slate-500">No uploaded documents found for this claim.</p>
-                  : <ul className="mt-3 space-y-2">{claimDocuments.map((doc) => <li key={doc.id} className="flex flex-col justify-between gap-3 rounded-xl border border-sage-100 p-3 sm:flex-row sm:items-center">
+                  : <><p className="mt-3 text-xs text-slate-500">{claimDocuments.filter((doc) => doc.verified).length} of {claimDocuments.length} uploaded documents verified</p>{documentVerificationError && <p role="alert" className="mt-2 text-sm text-red-700">{documentVerificationError}</p>}<ul className="mt-3 space-y-2">{claimDocuments.map((doc) => <li key={doc.id} className="flex flex-col justify-between gap-3 rounded-xl border border-sage-100 p-3 sm:flex-row sm:items-center">
                     <div><p className="break-all text-sm font-medium">{doc.original_file_name}</p><p className="mt-1 text-xs text-slate-500">{doc.mime_type} · {Math.round((doc.file_size_bytes || 0) / 1024)} KB</p></div>
                     <a className="inline-flex w-fit rounded-full border border-sage-200 px-4 py-2 text-sm font-semibold text-sage-800 hover:bg-sage-50" href={`${API_URL}/claims/${selectedClaim.id}/documents/${doc.id}/view`} target="_blank" rel="noreferrer">Open document ↗</a>
-                  </li>)}</ul>}
+                    <button type="button" onClick={() => toggleDocumentVerification(doc)} className={`w-fit rounded-full px-4 py-2 text-xs font-semibold ${doc.verified ? "border border-sage-200 bg-white text-sage-800" : "bg-sage-700 text-white"}`}>{doc.verified ? "Verified ✓ (undo)" : "Mark verified"}</button>
+                  </li>)}</ul></>}
               </div>
               {aiError && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{aiError}</p>}
               {aiReview && <div className="mt-6 space-y-4 border-t border-sage-100 pt-5 text-sm"><div><h4 className="font-semibold">AI summary</h4><p className="mt-1 leading-6">{aiReview.summary || "No summary returned."}</p></div>
