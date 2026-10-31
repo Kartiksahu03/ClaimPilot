@@ -113,4 +113,76 @@ async function getClaims(req, res) {
   }
 }
 
-module.exports = { createClaim, getClaims };
+
+async function getClaimReviewWorkspace(req, res) {
+  const { claimId } = req.params;
+  try {
+    const claimResult = await pool.query(
+      "SELECT id, review_status FROM claims WHERE id = $1",
+      [claimId]
+    );
+    if (!claimResult.rows.length) return res.status(404).json({ success: false, message: "Claim not found." });
+    const [notes, logs] = await Promise.all([
+      pool.query("SELECT id, claim_id, note, reviewer_name, created_at FROM claim_reviewer_notes WHERE claim_id = $1 ORDER BY created_at DESC", [claimId]),
+      pool.query("SELECT id, claim_id, action, details, created_at FROM claim_activity_logs WHERE claim_id = $1 ORDER BY created_at DESC", [claimId])
+    ]);
+    return res.json({ success: true, claim: claimResult.rows[0], notes: notes.rows, activity: logs.rows });
+  } catch (error) {
+    console.error("Review workspace load failed:", error.message);
+    return res.status(500).json({ success: false, message: "Unable to load review workspace." });
+  }
+}
+
+async function updateClaimReviewStatus(req, res) {
+  const { claimId } = req.params;
+  const reviewStatus = cleanText(req.body.review_status);
+  const allowed = ["Submitted", "In Review", "Review Completed"];
+  if (!allowed.includes(reviewStatus)) return res.status(400).json({ success: false, message: "Invalid review status." });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const updated = await client.query(
+      "UPDATE claims SET review_status = $1, updated_at = NOW() WHERE id = $2 RETURNING id, review_status",
+      [reviewStatus, claimId]
+    );
+    if (!updated.rows.length) { await client.query("ROLLBACK"); return res.status(404).json({ success: false, message: "Claim not found." }); }
+    await client.query(
+      "INSERT INTO claim_activity_logs (claim_id, action, details) VALUES ($1, $2, $3)",
+      [claimId, "review_status_updated", JSON.stringify({ description: "Review status changed to " + reviewStatus, review_status: reviewStatus })]
+    );
+    await client.query("COMMIT");
+    return res.json({ success: true, claim: updated.rows[0] });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Review status update failed:", error.message);
+    return res.status(500).json({ success: false, message: "Unable to update review status." });
+  } finally { client.release(); }
+}
+
+async function addReviewerNote(req, res) {
+  const { claimId } = req.params;
+  const note = cleanText(req.body.note);
+  const reviewerName = cleanText(req.body.reviewer_name) || "Demo Reviewer";
+  if (!note || note.length > 3000) return res.status(400).json({ success: false, message: "Enter a note of 1–3000 characters." });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const inserted = await client.query(
+      "INSERT INTO claim_reviewer_notes (claim_id, note, reviewer_name) VALUES ($1, $2, $3) RETURNING id, claim_id, note, reviewer_name, created_at",
+      [claimId, note, reviewerName]
+    );
+    await client.query(
+      "INSERT INTO claim_activity_logs (claim_id, action, details) VALUES ($1, $2, $3)",
+      [claimId, "reviewer_note_added", JSON.stringify({ description: "Reviewer added a note", note_id: inserted.rows[0].id })]
+    );
+    await client.query("COMMIT");
+    return res.status(201).json({ success: true, note: inserted.rows[0] });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Reviewer note add failed:", error.message);
+    return res.status(500).json({ success: false, message: "Unable to save reviewer note." });
+  } finally { client.release(); }
+}
+
+module.exports = { createClaim, getClaims, getClaimReviewWorkspace, updateClaimReviewStatus, addReviewerNote };
+
