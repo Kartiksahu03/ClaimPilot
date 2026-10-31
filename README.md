@@ -1,86 +1,105 @@
 # ClaimPilot
 
-AI-assisted medical insurance claim review workspace built with React, Node.js, Express, Supabase PostgreSQL, and Groq.
+**AI-assisted medical insurance claim review workspace** built with React, Vite, Node.js, Express, Supabase PostgreSQL, and Groq.
 
-ClaimPilot helps organize submitted claim information and supporting documents. Groq AI is intended to assist with document summarization and information extraction. An authorized human reviewer remains responsible for reviewing the information and making any claim decision.
+ClaimPilot helps a reviewer organize claim submissions, inspect supporting documents, understand AI-generated review assistance, and record workflow progress. It is designed to support—not replace—human judgment.
 
-> **Educational demonstration only.** Use synthetic sample documents. Do not upload real patient records or sensitive medical information. AI output may be incomplete or incorrect and must be verified.
+> **Demo and safety notice:** ClaimPilot is an educational workflow demonstration. Use synthetic sample data only. Do not upload real patient records, protected health information, or other sensitive medical information. AI-generated summaries and suggestions can be incomplete or inaccurate and must be independently verified. ClaimPilot does not make coverage, approval, or rejection decisions.
 
-## Project structure
+## What it demonstrates
 
-```
+- Claim queue with search, status/category filters, and queue counts
+- Claim review workspace with claim details and supporting documents
+- Document verification tracking
+- AI-assisted review context and suggested next steps for the human reviewer
+- Reviewer notes, activity history, and recorded review disposition
+- Review workflow states for requesting more information or marking a claim ready for an insurer decision
+
+**Important distinction:** A recorded review disposition is a workflow status, not an insurance coverage decision. Final decisions remain with the authorized insurer/reviewer.
+
+## Technology
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React, Vite, Tailwind CSS |
+| Backend | Node.js, Express |
+| Database | Supabase PostgreSQL |
+| AI assistance | Groq API |
+
+## Repository structure
+
+```text
 ClaimPilot/
-├── frontend/   # React + Vite + Tailwind CSS
-└── backend/    # Node.js + Express API
+├── frontend/   # React + Vite application
+└── backend/    # Express API and database integration
 ```
 
-## Requirements
+## Run locally
+
+### Prerequisites
 
 - Node.js 20 or later
 - npm
 - A Supabase project with PostgreSQL
-- A Groq API key for AI features (added in a later setup step)
+- A Groq API key for AI-assisted features
 
-## Run locally
+### 1. Configure the database
 
-### 1. Backend
+Run the SQL setup in `backend/schema.sql` in the Supabase SQL Editor. Then apply the additional migration files in `backend/migrations/` in their intended order, if present. Keep database credentials private.
 
-Open a terminal in the repository folder:
+### 2. Start the backend
 
 ```bash
 cd backend
 npm install
 ```
 
-Copy `.env.example` to `.env` and fill in the environment values. Do not commit the real `.env` file.
-
-Start the API:
+Copy `.env.example` to `.env` and populate the required backend environment variables. Do not commit `.env`.
 
 ```bash
 npm run dev
 ```
 
-Health check: `http://localhost:5000/api/health`.
+The API health endpoint is expected at `http://localhost:5000/api/health` for the local configuration.
 
-### 2. Frontend
+### 3. Start the frontend
 
-Open a second terminal in the repository folder:
+In a second terminal:
 
 ```bash
 cd frontend
 npm install
 ```
 
-Copy `.env.example` to `.env`, then start Vite:
+Copy `.env.example` to `.env` and set the API base URL to your backend (for a standard local setup, `http://localhost:5000/api`).
 
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:5173`.
+Open the local URL printed by Vite (commonly `http://localhost:5173`).
 
-## Database
+## Environment and secrets
 
-Run `backend/schema.sql` in the Supabase SQL Editor. The backend will connect to PostgreSQL using the standard `pg` package and the server-side `DATABASE_URL`.
+Use `frontend/.env.example` and `backend/.env.example` as the configuration references. Never commit API keys, database passwords, JWT secrets, or real user data. Server-side credentials—including the Groq key and database connection string—must remain on the backend.
 
-## Environment variables
+## Demo walkthrough
 
-See `frontend/.env.example` and `backend/.env.example`. Never commit database passwords, API keys, or JWT secrets. Keep the Supabase database connection string and Groq key on the backend only.
+1. Open the claims queue and point out the search, filters, and status counts.
+2. Select a synthetic sample claim to open its review workspace.
+3. Review the claim information and supporting documents; demonstrate document verification.
+4. Show the AI-assisted review context and explain that it is advisory and must be checked.
+5. Add a reviewer note and show the activity history.
+6. Record a review disposition, return to the queue, and demonstrate that the workflow status is visible.
+7. Emphasize that ClaimPilot records review progress; it does not approve or deny coverage.
 
-## Current implementation status
+## Current scope and limitations
 
-- [x] Initial frontend and backend structure
-- [x] React + Vite landing screen
-- [x] Express health endpoint
-- [x] Initial PostgreSQL schema
-- [ ] Supabase connection and document storage
-- [ ] Public claim submission and document upload
-- [ ] Custom admin JWT authentication
-- [ ] Admin claims dashboard, search, and filters
-- [ ] Groq document extraction and summaries
-- [ ] Claim review workflow and activity log
-- [ ] Testing and deployment
+- Demonstration workflow using synthetic data; not production-ready for real medical or insurance records.
+- AI output may be wrong, incomplete, or misleading and requires human verification.
+- Review disposition represents workflow progress only, not a final claim decision.
+- Production use would require a comprehensive security, privacy, access-control, audit, reliability, and regulatory review.
 
 ## Responsible use
 
-Use synthetic sample documents only. ClaimPilot is a workflow demonstration, not a medical device or an automated insurance decision system. AI-generated information must be checked by an authorized human reviewer.
+Use synthetic sample documents only. Do not treat AI output as medical, legal, or insurance advice. An authorized human reviewer is responsible for verifying evidence and making any insurer decision.
