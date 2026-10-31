@@ -97,4 +97,20 @@ async function createClaim(req, res) {
   }
 }
 
-module.exports = { createClaim };
+async function getClaims(req, res) {
+  try {
+    const result = await pool.query(
+      `SELECT id, claimant_name, email, claim_category, policy_number,
+              claim_amount, status, created_at
+       FROM claims
+       ORDER BY created_at DESC
+       LIMIT 100`
+    );
+    return res.status(200).json({ success: true, claims: result.rows });
+  } catch (error) {
+    console.error("Fetch claims failed:", error.message);
+    return res.status(500).json({ success: false, message: "Unable to retrieve claims right now." });
+  }
+}
+
+module.exports = { createClaim, getClaims };
