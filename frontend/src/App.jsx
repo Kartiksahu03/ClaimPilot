@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import {
   ArrowUpRight,
@@ -33,6 +33,29 @@ function App() {
   const [aiReview, setAiReview] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
+  const [claims, setClaims] = useState([]);
+  const [claimsLoading, setClaimsLoading] = useState(true);
+  const [claimsError, setClaimsError] = useState("");
+  const [selectedClaim, setSelectedClaim] = useState(null);
+
+  async function loadClaims() {
+    setClaimsLoading(true);
+    setClaimsError("");
+    try {
+      const response = await axios.get(`${API_URL}/claims`);
+      const savedClaims = response.data.claims || [];
+      setClaims(savedClaims);
+      setSelectedClaim((current) => current
+        ? (savedClaims.find((claim) => claim.id === current.id) || savedClaims[0] || null)
+        : (savedClaims[0] || null));
+    } catch (error) {
+      setClaimsError(error.response?.data?.message || "Could not load saved claims. Check the backend and database.");
+    } finally {
+      setClaimsLoading(false);
+    }
+  }
+
+  useEffect(() => { loadClaims(); }, []);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -58,6 +81,8 @@ function App() {
       const response = await axios.post(`${API_URL}/claims`, payload);
       const createdClaim = response.data.claim;
       setSuccessClaim(createdClaim);
+      setSelectedClaim(createdClaim);
+      setClaims((current) => [createdClaim, ...current.filter((claim) => claim.id !== createdClaim.id)]);
       setAiReview(null);
       setAiError("");
       setForm(initialForm);
@@ -91,12 +116,13 @@ function App() {
 
 
   async function handleAiReview() {
-    if (!successClaim?.id) return;
+    const claimToReview = selectedClaim || successClaim;
+    if (!claimToReview?.id) return;
     setAiLoading(true);
     setAiError("");
     setAiReview(null);
     try {
-      const response = await axios.post(`${API_URL}/claims/${successClaim.id}/ai-review`);
+      const response = await axios.post(`${API_URL}/claims/${claimToReview.id}/ai-review`);
       setAiReview(response.data.review);
     } catch (error) {
       setAiError(error.response?.data?.message || "AI review failed. Check the uploaded PDF and Groq configuration.");
@@ -204,6 +230,37 @@ function App() {
                 <p className="mt-2 text-xs text-slate-500">Workspace preview · Sample metrics will appear after setup</p>
               </div>
             </div>
+          </div>
+        </section>
+
+
+        <section id="saved-claims" className="scroll-mt-8 py-8">
+          <div className="mx-auto max-w-5xl">
+            <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+              <div><span className="inline-flex items-center gap-2 rounded-full border border-sage-200 bg-white px-4 py-2 text-sm font-medium text-sage-800"><FileCheck2 size={16} /> Claims workspace</span>
+                <h2 className="mt-4 text-3xl font-semibold tracking-tight">Previously submitted claims</h2>
+                <p className="mt-2 text-sm text-slate-600">Saved claims are restored here whenever you return or refresh.</p></div>
+              <button type="button" onClick={loadClaims} disabled={claimsLoading} className="rounded-full border border-sage-200 bg-white px-5 py-2.5 text-sm font-semibold text-sage-800 disabled:opacity-60">{claimsLoading ? "Refreshing..." : "Refresh claims"}</button>
+            </div>
+            {claimsError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{claimsError}</p>}
+            {claimsLoading ? <div className="rounded-2xl border border-sage-100 bg-white p-6 text-sm text-slate-500">Loading saved claims...</div>
+              : claims.length === 0 ? <div className="rounded-2xl border border-sage-100 bg-white p-6 text-sm text-slate-500">No submitted claims found yet. New submissions will appear here.</div>
+              : <div className="space-y-3">{claims.map((claim) => <article key={claim.id} className={`rounded-2xl border bg-white p-5 shadow-sm ${selectedClaim?.id === claim.id ? "border-sage-500 ring-2 ring-sage-100" : "border-sage-100"}`}>
+                  <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{claim.claimant_name}</h3><span className="rounded-full bg-sage-50 px-3 py-1 text-xs text-sage-800">{claim.status || "Submitted"}</span></div>
+                    <p className="mt-1 text-sm text-slate-600">{claim.claim_category} · ₹{claim.claim_amount ?? "—"}</p><p className="mt-2 break-all font-mono text-xs text-slate-500">Reference ID: {claim.id}</p></div>
+                    <button type="button" onClick={() => { setSelectedClaim(claim); setSuccessClaim(claim); setAiReview(null); setAiError(""); }} className="rounded-full bg-sage-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sage-800">{selectedClaim?.id === claim.id ? "Selected claim" : "Open claim"}</button></div>
+                </article>)}</div>}
+            {selectedClaim && <div className="mt-6 rounded-3xl border border-sage-100 bg-white p-5 shadow-soft sm:p-7">
+              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start"><div><p className="text-sm font-medium text-sage-700">Selected claim</p><h3 className="mt-1 text-xl font-semibold">{selectedClaim.claimant_name}</h3><p className="mt-1 break-all font-mono text-xs text-slate-500">{selectedClaim.id}</p></div>
+                <button type="button" onClick={handleAiReview} disabled={aiLoading} className="inline-flex items-center justify-center gap-2 rounded-full bg-sage-700 px-5 py-3 text-sm font-semibold text-white hover:bg-sage-800 disabled:opacity-60"><Sparkles size={16} /> {aiLoading ? "Analyzing documents..." : "Run AI document review"}</button></div>
+              {aiError && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{aiError}</p>}
+              {aiReview && <div className="mt-6 space-y-4 border-t border-sage-100 pt-5 text-sm"><div><h4 className="font-semibold">AI summary</h4><p className="mt-1 leading-6">{aiReview.summary || "No summary returned."}</p></div>
+                <div><h4 className="font-semibold">Extracted fields (verify manually)</h4><pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-xl bg-cream p-4 text-xs">{JSON.stringify(aiReview.extractedFields || {}, null, 2)}</pre></div>
+                <div><h4 className="font-semibold">Missing information</h4>{aiReview.missingInformation?.length ? <ul className="mt-1 list-inside list-disc">{aiReview.missingInformation.map((item,index)=><li key={index}>{item}</li>)}</ul> : <p className="mt-1 text-slate-600">No missing information flagged by AI.</p>}</div>
+                <div><h4 className="font-semibold">Possible discrepancies</h4>{aiReview.possibleDiscrepancies?.length ? <ul className="mt-1 list-inside list-disc">{aiReview.possibleDiscrepancies.map((item,index)=><li key={index}>{item}</li>)}</ul> : <p className="mt-1 text-slate-600">No possible discrepancies flagged by AI.</p>}</div>
+                <div><h4 className="font-semibold">Reviewer notes</h4>{aiReview.reviewerNotes?.length ? <ul className="mt-1 list-inside list-disc">{aiReview.reviewerNotes.map((item,index)=><li key={index}>{item}</li>)}</ul> : <p className="mt-1 text-slate-600">No additional notes.</p>}</div>
+                <p className="text-xs text-slate-500">AI-generated assistance only. Human verification is required; this is not an approval or rejection decision.</p></div>}
+            </div>}
           </div>
         </section>
 
