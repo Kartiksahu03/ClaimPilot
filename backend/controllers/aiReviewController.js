@@ -109,9 +109,15 @@ async function analyzeClaimDocuments(req, res) {
   },
   "missingInformation": [],
   "possibleDiscrepancies": [],
-  "reviewerNotes": []
+  "reviewerNotes": [],
+  "reviewGuidance": {
+    "priority": "routine | attention | urgent",
+    "suggestedNextStep": "verify_documents | request_information | compare_amounts | manual_review",
+    "rationale": "brief evidence-based explanation",
+    "evidence": []
+  }
 }
-Use null when a field is not stated. Do not infer absent facts. Note that extracted values require human verification. Never recommend approve or reject.`
+Use null when a field is not stated. Do not infer absent facts. Note that extracted values require human verification. The reviewGuidance is workflow assistance only: choose priority based only on document completeness or clear inconsistencies, not medical severity, coverage eligibility, or suspicion of fraud. Choose suggestedNextStep from the exact listed options. Include short evidence references to document names or claim fields. Never recommend approve or reject or make coverage/medical-necessity decisions.`
           },
           {
             role: "user",
