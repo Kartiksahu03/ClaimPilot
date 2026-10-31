@@ -1,10 +1,13 @@
 const express = require("express");
-const { createClaim, getClaims } = require("../controllers/claimController");
+const { createClaim, getClaims, getClaimReviewWorkspace, updateClaimReviewStatus, addReviewerNote } = require("../controllers/claimController");
 
 const router = express.Router();
 
-// Public claim retrieval and intake endpoints. Admin authentication will be added separately.
+// Public demo endpoints. Add reviewer/admin authentication before production use.
 router.get("/", getClaims);
 router.post("/", createClaim);
+router.get("/:claimId/review-workspace", getClaimReviewWorkspace);
+router.patch("/:claimId/review-status", updateClaimReviewStatus);
+router.post("/:claimId/reviewer-notes", addReviewerNote);
 
 module.exports = router;
