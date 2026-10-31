@@ -37,6 +37,9 @@ function App() {
   const [claimsLoading, setClaimsLoading] = useState(true);
   const [claimsError, setClaimsError] = useState("");
   const [selectedClaim, setSelectedClaim] = useState(null);
+  const [claimDocuments, setClaimDocuments] = useState([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState("");
 
   async function loadClaims() {
     setClaimsLoading(true);
@@ -114,6 +117,21 @@ function App() {
     }
   }
 
+
+  async function loadClaimDocuments(claimId) {
+    if (!claimId) return;
+    setDocumentsLoading(true);
+    setDocumentsError("");
+    try {
+      const response = await axios.get(`${API_URL}/claims/${claimId}/documents`);
+      setClaimDocuments(response.data.documents || []);
+    } catch (error) {
+      setClaimDocuments([]);
+      setDocumentsError(error.response?.data?.message || "Could not load documents for this claim.");
+    } finally {
+      setDocumentsLoading(false);
+    }
+  }
 
   async function handleAiReview() {
     const claimToReview = selectedClaim || successClaim;
@@ -248,11 +266,23 @@ function App() {
               : <div className="space-y-3">{claims.map((claim) => <article key={claim.id} className={`rounded-2xl border bg-white p-5 shadow-sm ${selectedClaim?.id === claim.id ? "border-sage-500 ring-2 ring-sage-100" : "border-sage-100"}`}>
                   <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{claim.claimant_name}</h3><span className="rounded-full bg-sage-50 px-3 py-1 text-xs text-sage-800">{claim.status || "Submitted"}</span></div>
                     <p className="mt-1 text-sm text-slate-600">{claim.claim_category} · ₹{claim.claim_amount ?? "—"}</p><p className="mt-2 break-all font-mono text-xs text-slate-500">Reference ID: {claim.id}</p></div>
-                    <button type="button" onClick={() => { setSelectedClaim(claim); setSuccessClaim(claim); setAiReview(null); setAiError(""); }} className="rounded-full bg-sage-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sage-800">{selectedClaim?.id === claim.id ? "Selected claim" : "Open claim"}</button></div>
+                    <button type="button" onClick={() => { setSelectedClaim(claim); setSuccessClaim(claim); setAiReview(null); setAiError(""); loadClaimDocuments(claim.id); }} className="rounded-full bg-sage-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sage-800">{selectedClaim?.id === claim.id ? "Selected claim" : "Open claim"}</button></div>
                 </article>)}</div>}
             {selectedClaim && <div className="mt-6 rounded-3xl border border-sage-100 bg-white p-5 shadow-soft sm:p-7">
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start"><div><p className="text-sm font-medium text-sage-700">Selected claim</p><h3 className="mt-1 text-xl font-semibold">{selectedClaim.claimant_name}</h3><p className="mt-1 break-all font-mono text-xs text-slate-500">{selectedClaim.id}</p></div>
                 <button type="button" onClick={handleAiReview} disabled={aiLoading} className="inline-flex items-center justify-center gap-2 rounded-full bg-sage-700 px-5 py-3 text-sm font-semibold text-white hover:bg-sage-800 disabled:opacity-60"><Sparkles size={16} /> {aiLoading ? "Analyzing documents..." : "Run AI document review"}</button></div>
+
+              <div className="mt-6 border-t border-sage-100 pt-5">
+                <h4 className="font-semibold">Claim documents</h4>
+                <p className="mt-1 text-sm text-slate-500">View the original files linked to this claim.</p>
+                {documentsLoading ? <p className="mt-3 text-sm text-slate-500">Loading documents…</p>
+                  : documentsError ? <p role="alert" className="mt-3 text-sm text-red-700">{documentsError}</p>
+                  : claimDocuments.length === 0 ? <p className="mt-3 text-sm text-slate-500">No uploaded documents found for this claim.</p>
+                  : <ul className="mt-3 space-y-2">{claimDocuments.map((doc) => <li key={doc.id} className="flex flex-col justify-between gap-3 rounded-xl border border-sage-100 p-3 sm:flex-row sm:items-center">
+                    <div><p className="break-all text-sm font-medium">{doc.original_file_name}</p><p className="mt-1 text-xs text-slate-500">{doc.mime_type} · {Math.round((doc.file_size_bytes || 0) / 1024)} KB</p></div>
+                    <a className="inline-flex w-fit rounded-full border border-sage-200 px-4 py-2 text-sm font-semibold text-sage-800 hover:bg-sage-50" href={`${API_URL}/claims/${selectedClaim.id}/documents/${doc.id}/view`} target="_blank" rel="noreferrer">Open document ↗</a>
+                  </li>)}</ul>}
+              </div>
               {aiError && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{aiError}</p>}
               {aiReview && <div className="mt-6 space-y-4 border-t border-sage-100 pt-5 text-sm"><div><h4 className="font-semibold">AI summary</h4><p className="mt-1 leading-6">{aiReview.summary || "No summary returned."}</p></div>
                 <div><h4 className="font-semibold">Extracted fields (verify manually)</h4><pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-xl bg-cream p-4 text-xs">{JSON.stringify(aiReview.extractedFields || {}, null, 2)}</pre></div>
